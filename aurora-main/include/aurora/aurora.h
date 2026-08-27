@@ -137,6 +137,8 @@ typedef struct {
 
 AuroraInfo aurora_initialize(int argc, char* argv[], const AuroraConfig* config);
 void aurora_shutdown();
+// Cleanly disconnect external presentation sessions before an intentional fast process exit.
+void aurora_prepare_for_process_exit();
 const AuroraEvent* aurora_update();
 bool aurora_begin_frame();
 void aurora_end_frame();

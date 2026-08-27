@@ -1,5 +1,34 @@
 include(FetchContent)
 
+if (AURORA_ENABLE_OPENXR)
+  # OpenXR-SDK contains the generated headers and loader without the samples,
+  # API layers, or Python generator required by OpenXR-SDK-Source.
+  set(BUILD_API_LAYERS OFF CACHE BOOL "" FORCE)
+  set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(BUILD_CONFORMANCE_TESTS OFF CACHE BOOL "" FORCE)
+  set(BUILD_LOADER ON CACHE BOOL "" FORCE)
+  set(DYNAMIC_LOADER ON CACHE BOOL "" FORCE)
+  set(INSTALL_TO_ARCHITECTURE_PREFIXES OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(openxr
+    URL "https://github.com/KhronosGroup/OpenXR-SDK/archive/refs/tags/release-${AURORA_OPENXR_VERSION}.tar.gz"
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    EXCLUDE_FROM_ALL)
+  FetchContent_MakeAvailable(openxr)
+  if (NOT TARGET OpenXR::openxr_loader)
+    message(FATAL_ERROR "OpenXR SDK did not provide OpenXR::openxr_loader")
+  endif ()
+  # OpenXR 1.1.61 adds its ELF export map for every Clang build, including
+  # llvm-mingw. lld-link correctly rejects that ELF-only option on Windows.
+  if (MINGW AND TARGET openxr_loader)
+    set_target_properties(openxr_loader PROPERTIES LINK_FLAGS "")
+    get_target_property(_openxr_link_options openxr_loader LINK_OPTIONS)
+    if (_openxr_link_options)
+      list(FILTER _openxr_link_options EXCLUDE REGEX "version-script")
+      set_target_properties(openxr_loader PROPERTIES LINK_OPTIONS "${_openxr_link_options}")
+    endif ()
+  endif ()
+endif ()
+
 # Don't build tests for third party dependencies
 set(BUILD_TESTING OFF CACHE INTERNAL "Build tests")
 set(SKIP_INSTALL_ALL ON)

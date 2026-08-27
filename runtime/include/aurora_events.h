@@ -59,6 +59,7 @@ inline void Flush(bool force = false) {
 // process directly and do not run the crash/atexit paths.
 [[noreturn]] inline void ExitForAuroraWindowClose() noexcept {
     WindowPlacementPersistence::Flush(true);
+    aurora_prepare_for_process_exit();
 #if defined(_WIN32)
     ::ExitProcess(0);
 #else

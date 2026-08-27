@@ -535,6 +535,16 @@ bool initialize(AuroraBackend auroraBackend) {
     dawnInstanceDescriptor.backendValidationLevel = dawn::native::BackendValidationLevel::Disabled;
     instanceDescriptor.nextInChain = &dawnInstanceDescriptor;
 #endif
+#if defined(WEBGPU_DAWN) && defined(AURORA_ENABLE_OPENXR)
+    // Dawn classifies native D3D12 resource import as an unsafe API.  The toggle must be present
+    // when the instance discovers adapters or the required feature is omitted from GetFeatures().
+    const std::array<const char*, 1> instanceToggles{"allow_unsafe_apis"};
+    wgpu::DawnTogglesDescriptor instanceTogglesDescriptor;
+    instanceTogglesDescriptor.nextInChain = instanceDescriptor.nextInChain;
+    instanceTogglesDescriptor.enabledToggleCount = instanceToggles.size();
+    instanceTogglesDescriptor.enabledToggles = instanceToggles.data();
+    instanceDescriptor.nextInChain = &instanceTogglesDescriptor;
+#endif
     g_instance = wgpu::CreateInstance(&instanceDescriptor);
     if (!g_instance) {
       Log.error("Failed to create WebGPU instance");
@@ -639,6 +649,9 @@ bool initialize(AuroraBackend auroraBackend) {
         requiredLimits.minUniformBufferOffsetAlignment, requiredLimits.minStorageBufferOffsetAlignment);
     std::vector<wgpu::FeatureName> requiredFeatures;
     bool implicitDeviceSynchronizationSupported = false;
+#ifdef AURORA_ENABLE_OPENXR
+    bool sharedD3D12ResourceSupported = false;
+#endif
     wgpu::SupportedFeatures supportedFeatures;
     g_adapter.GetFeatures(&supportedFeatures);
     for (size_t i = 0; i < supportedFeatures.featureCount; ++i) {
@@ -653,6 +666,13 @@ bool initialize(AuroraBackend auroraBackend) {
         implicitDeviceSynchronizationSupported = true;
         requiredFeatures.push_back(feature);
       }
+#ifdef AURORA_ENABLE_OPENXR
+      if (g_backendType == wgpu::BackendType::D3D12 &&
+          feature == wgpu::FeatureName::SharedTextureMemoryD3D12Resource) {
+        sharedD3D12ResourceSupported = true;
+        requiredFeatures.push_back(feature);
+      }
+#endif
     }
     if (!implicitDeviceSynchronizationSupported) {
       Log.warn(
@@ -682,6 +702,13 @@ bool initialize(AuroraBackend auroraBackend) {
       "enable_immediate_error_handling",
         /* clang-format on */
     };
+#ifdef AURORA_ENABLE_OPENXR
+    enableToggles.push_back("allow_unsafe_apis");
+    if (g_backendType == wgpu::BackendType::D3D12 && !sharedD3D12ResourceSupported) {
+      Log.error("Dawn does not expose D3D12 shared-resource import required by OpenXR");
+      return false;
+    }
+#endif
 #ifdef NDEBUG
     enableToggles.push_back("skip_validation");
     enableToggles.push_back("disable_robustness");

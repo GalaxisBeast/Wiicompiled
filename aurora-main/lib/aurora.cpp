@@ -7,6 +7,9 @@
 #include "gx/shader_info.hpp"
 #include "imgui.hpp"
 #include "webgpu/gpu.hpp"
+#ifdef AURORA_ENABLE_OPENXR
+#include "openxr.hpp"
+#endif
 #include <webgpu/webgpu_cpp.h>
 #endif
 
@@ -679,7 +682,17 @@ AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config) noexce
 #ifdef AURORA_ENABLE_GX
   /* Attempt to create a window using the calling application's desired backend */
   const AuroraBackend requestedBackend = config.desiredBackend;
-  AuroraBackend selectedBackend = requestedBackend;
+#ifdef AURORA_ENABLE_OPENXR
+  // The current headset bridge imports OpenXR's D3D12 swapchain resources into Dawn.
+  // Do not allow automatic selection to pick Vulkan while that bridge is active.
+  const AuroraBackend xrBackend = BACKEND_D3D12;
+#endif
+  AuroraBackend selectedBackend =
+#ifdef AURORA_ENABLE_OPENXR
+      xrBackend;
+#else
+      requestedBackend;
+#endif
   bool windowCreated = false;
   if (selectedBackend != BACKEND_AUTO) {
     Log.info("Requested graphics backend: {}", backend_name(selectedBackend));
@@ -748,6 +761,9 @@ AuroraInfo initialize(int argc, char* argv[], const AuroraConfig& config) noexce
     g_config.imGuiInitCallback(&size);
   }
   imgui::initialize();
+#ifdef AURORA_ENABLE_OPENXR
+  openxr::initialize();
+#endif
 #endif
 
   g_initialFrame = true;
@@ -877,6 +893,15 @@ bool present_presentation_job(const PresentationJob& job) {
   std::chrono::nanoseconds scheduleWaitDuration{};
   std::chrono::nanoseconds presentDuration{};
   bool presented = false;
+#ifdef AURORA_ENABLE_OPENXR
+  // The guest produces native frames at 60 Hz. Interpolation jobs are desktop-only motion
+  // synthesis; submitting all of them to xrWaitFrame serializes the presenter against the HMD
+  // compositor and causes severe queue drops.
+  if (!job.interpolated && !job.duplicated) {
+    std::lock_guard submitLock(g_queueSubmitMutex);
+    openxr::present(job.image->bindGroup);
+  }
+#endif
   if (g_surfaceReconfigurePending.load(std::memory_order_acquire) ||
       window::native_resize_pending() || !window::is_presentable()) {
     return false;
@@ -1224,6 +1249,9 @@ void shutdown() noexcept {
   stop_frame_worker();
 #ifdef AURORA_ENABLE_GX
   stop_presenter();
+#ifdef AURORA_ENABLE_OPENXR
+  openxr::shutdown();
+#endif
   g_presentationImagePools = {};
   imgui::shutdown();
   gfx::shutdown();
@@ -1786,6 +1814,14 @@ AuroraInfo aurora_initialize(int argc, char* argv[], const AuroraConfig* config)
   return aurora::initialize(argc, argv, *config);
 }
 void aurora_shutdown() { aurora::shutdown(); }
+void aurora_prepare_for_process_exit() {
+#if defined(AURORA_ENABLE_GX) && defined(AURORA_ENABLE_OPENXR)
+  // Window-close exits intentionally bypass full CRT/runtime teardown. Serialize with the
+  // presentation worker so SteamVR still receives a clean OpenXR session disconnect.
+  std::lock_guard submitLock(aurora::g_queueSubmitMutex);
+  aurora::openxr::shutdown();
+#endif
+}
 const AuroraEvent* aurora_update() { return aurora::update(); }
 bool aurora_begin_frame() { return aurora::begin_frame(); }
 void aurora_end_frame() { aurora::end_frame(); }

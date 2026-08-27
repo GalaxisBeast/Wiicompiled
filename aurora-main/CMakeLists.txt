@@ -11,6 +11,8 @@ option(AURORA_ENABLE_GX "Enable GX implementation and WebGPU renderer" ON)
 option(AURORA_ENABLE_DVD "Enable DVD implementation backed by nod" OFF)  # TODO: need to fix tests
 option(AURORA_ENABLE_CARD "Enable CARD implementation based on kabufuda" ON)
 option(AURORA_CACHE_USE_ZSTD "Compress WebGPU cache entries with zstd" ON)
+option(AURORA_ENABLE_OPENXR "Enable OpenXR headset presentation" OFF)
+set(AURORA_OPENXR_VERSION "1.1.61" CACHE STRING "OpenXR SDK version")
 
 # Dependency versions
 set(AURORA_DAWN_VERSION "v20260603.191052" CACHE STRING "Dawn version tag (https://github.com/encounter/dawn-build/releases)")
