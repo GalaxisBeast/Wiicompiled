@@ -65,6 +65,7 @@ holds the chosen digital button. Each binding's threshold is saved independently
 (for example, `a = "right_trigger@35,south"`).
 
 **Keyboard and Mouse support.**
+
 Keyboard and mouse are also available through **F10 > Controller settings > Keyboard and mouse**
 for each port. Enabling this replaces that port's gamepad input. The default preset uses WASD
 for the main stick, left mouse for A (accelerate), Space for B (brake), right mouse for R
