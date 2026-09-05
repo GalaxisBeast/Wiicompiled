@@ -95,8 +95,8 @@ double ReadInput(SDL_Gamepad* gamepad, const std::string& name) {
     // here does not have to use Dolphin vocabulary.
     if (const auto* native = ControllerNames::FindNativeButton(name)) {
         if (PADIsAxisButton(native->nativeButton)) {
-            const auto axis = static_cast<SDL_GamepadAxis>(native->nativeButton & 0x7fu);
-            const double sign = (native->nativeButton & 0x80u) != 0 ? -1.0 : 1.0;
+            const auto axis = static_cast<SDL_GamepadAxis>(PADAxisButtonAxis(native->nativeButton));
+            const double sign = PADAxisButtonNegative(native->nativeButton) ? -1.0 : 1.0;
             return std::clamp(SDL_GetGamepadAxis(gamepad, axis) / 32767.0 * sign, 0.0, 1.0);
         }
         if (native->nativeButton < SDL_GAMEPAD_BUTTON_COUNT) {

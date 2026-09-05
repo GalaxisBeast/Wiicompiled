@@ -509,13 +509,16 @@ void DrawRebindPrompt() {
         ImGui::OpenPopup("Rebind input");
         g_rebind.openPopup = false;
     }
-    if (!ImGui::BeginPopupModal("Rebind input", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+    if (!ImGui::BeginPopupModal("Rebind input", &g_rebind.active, ImGuiWindowFlags_AlwaysAutoResize)) {
+        g_rebind.active = false;
+        return;
+    }
     if (g_rebind.active) {
         ImGui::Text("Rebind: %s", g_rebind.label.c_str());
         ImGui::TextUnformatted(g_rebind.kind == RebindKind::Controller
             ? "Press a controller button, pull a trigger, or move a stick."
             : "Press a keyboard key or click a mouse button.");
-        ImGui::TextUnformatted("Release any held input first. F10 is reserved for settings.");
+        ImGui::TextUnformatted("Release any held input first. Escape cancels. F10 is reserved for settings.");
         const float remaining = std::chrono::duration<float>(g_rebind.deadline - Clock::now()).count();
         ImGui::Text("Unmapped in %d seconds", std::max(0, static_cast<int>(std::ceil(remaining))));
         if (remaining <= 0.0f) {
@@ -867,6 +870,8 @@ void DrawControllerSettings() {
                 };
                 if (secondary) PADSetAltButtonMapping(selectedGamePort, updated);
                 else PADSetButtonMapping(selectedGamePort, updated);
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
                 writeBinding(i, mappingIt->nativeButton,
                              altIt != nullptr ? altIt->nativeButton : PAD_NATIVE_BUTTON_INVALID);
                 PADSerializeMappings();
@@ -1306,6 +1311,9 @@ void HandleEvents(const AuroraEvent* events) noexcept {
             continue;
         }
         controller_mapping_wizard::HandleSdlEvent(ev->sdl);
+        if (g_rebind.active && IsToggleKey(ev->sdl, SDL_SCANCODE_ESCAPE)) {
+            g_rebind.active = false;
+        }
         if (!g_rebind.active && IsToggleKey(ev->sdl, SDL_SCANCODE_F10)) {
             SetTopBarVisible(!g_topBarVisible);
         }

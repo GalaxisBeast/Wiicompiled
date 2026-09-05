@@ -321,11 +321,11 @@ std::array<bool, PAD_CHANMAX> g_suppressRightTrigger{};
 bool is_mouse_scancode(const s32 scancode) { return scancode < PAD_KEY_INVALID; }
 bool is_native_binding_pressed(SDL_Gamepad* gamepad, u32 binding) {
   if (PADIsAxisButton(binding)) {
-    const u32 axis = binding & 0x7fu;
+    const u32 axis = PADAxisButtonAxis(binding);
     const u32 threshold = PADAxisButtonThreshold(binding);
     if (axis >= SDL_GAMEPAD_AXIS_COUNT || threshold < 1 || threshold > 100) return false;
     int value = SDL_GetGamepadAxis(gamepad, static_cast<SDL_GamepadAxis>(axis));
-    if ((binding & 0x80u) != 0) value = -value;
+    if (PADAxisButtonNegative(binding)) value = -value;
     return value > 0 && value * 100 >= static_cast<int>(threshold) * 32767;
   }
   return binding < SDL_GAMEPAD_BUTTON_COUNT &&
@@ -962,7 +962,9 @@ u32 PADRead(PADStatus* status) {
       // An explicit button binding must drive both, otherwise the original
       // L2/R2 axis still activates L/R even when it was rebound to L1/R1.
       // Real GC pads retain independent analog travel and end-stop clicks.
-      if (!controller->m_isGameCube) {
+      if (!(controller->m_isGameCube ||
+            (SDL_GetGamepadType(controller->m_controller) == SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO &&
+             controller->m_pid == 0x2073))) {
         if (leftTriggerSet) tl = (status[i].button & PAD_TRIGGER_L) != 0 ? 32767 : 0;
         if (rightTriggerSet) tr = (status[i].button & PAD_TRIGGER_R) != 0 ? 32767 : 0;
       }

@@ -48,7 +48,7 @@ struct NativeButtonItem {
     uint32_t nativeButton;
 };
 
-inline constexpr std::array<NativeButtonItem, SDL_GAMEPAD_BUTTON_COUNT + 12> kNativeButtons = {{
+inline constexpr auto kNativeButtons = std::to_array<NativeButtonItem>({
     {"disabled", "Unmapped", PAD_NATIVE_BUTTON_DISABLED},
     {"left_trigger", "Left trigger (LT / L2)", PADEncodeAxisButton(SDL_GAMEPAD_AXIS_LEFT_TRIGGER, false)},
     {"right_trigger", "Right trigger (RT / R2)", PADEncodeAxisButton(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, false)},
@@ -87,7 +87,7 @@ inline constexpr std::array<NativeButtonItem, SDL_GAMEPAD_BUTTON_COUNT + 12> kNa
     {"misc4", "Misc 4 / GC R click", SDL_GAMEPAD_BUTTON_MISC4},
     {"misc5", "Misc 5", SDL_GAMEPAD_BUTTON_MISC5},
     {"misc6", "Misc 6", SDL_GAMEPAD_BUTTON_MISC6},
-}};
+});
 
 inline std::string TrimToken(std::string_view token) {
     const size_t begin = token.find_first_not_of(" \t");
